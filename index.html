@@ -6,79 +6,168 @@
     <title>預約叫車服務</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        input, select, textarea { font-size: 16px !important; }
         .hidden { display: none !important; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-100 p-0">
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
 
-    <!-- 載入畫面 -->
-    <div id="loading" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <div class="loader mb-4"></div>
-        <p class="text-gray-500 font-bold">正在連線 LINE...</p>
-        <p id="debug-text" class="text-xs text-gray-400 mt-2">載入 SDK 中...</p>
+    <!-- Loading -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div class="loader mb-4 w-10 h-10 border-4"></div>
+        <p id="loading-text" class="text-gray-500 font-bold">系統連線中...</p>
     </div>
 
-    <!-- 主內容 -->
-    <div id="app" class="hidden min-h-screen bg-white">
-        <header class="bg-blue-600 p-6 text-white pb-8 rounded-b-3xl shadow-lg">
-            <h1 class="text-2xl font-bold">🚕 預約叫車</h1>
-            <p id="user-name" class="mt-1 opacity-90">Hi, 乘客</p>
-        </header>
-
-        <div class="p-6 -mt-4">
-            <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                <p class="text-green-600 font-bold text-center text-lg mb-2">🎉 LIFF 初始化成功！</p>
-                <p class="text-gray-500 text-center text-sm">現在您可以正常顯示畫面了</p>
-            </div>
+    <div id="app" class="hidden min-h-screen flex justify-center p-0 md:p-4">
+        <div class="w-full max-w-md bg-white shadow-xl rounded-none md:rounded-3xl overflow-hidden min-h-screen md:min-h-0 flex flex-col">
             
-            <button onclick="liff.closeWindow()" class="w-full mt-6 bg-gray-800 text-white py-4 rounded-xl font-bold">關閉視窗</button>
+            <!-- Header -->
+            <header class="bg-blue-600 text-white p-6 pb-8 rounded-b-[2rem] shadow-lg z-10">
+                <div class="text-center">
+                    <h1 class="text-2xl font-bold">🚕 預約叫車</h1>
+                    <p id="user-display" class="text-blue-100 text-sm mt-1">載入使用者...</p>
+                </div>
+            </header>
+
+            <!-- Form -->
+            <div class="flex-1 overflow-y-auto p-6 -mt-4 relative z-20">
+                <form id="booking-form" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
+                    <input type="hidden" id="name">
+                    
+                    <div>
+                        <label class="block font-bold text-gray-700 mb-1">📞 聯絡電話</label>
+                        <input type="tel" id="phone" required placeholder="09xx-xxx-xxx" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-gray-700 mb-1">📅 日期</label>
+                            <input type="date" id="date" required class="w-full p-3 bg-white border border-gray-200 rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-gray-700 mb-1">🕒 時間</label>
+                            <input type="time" id="time" required class="w-full p-3 bg-white border border-gray-200 rounded-xl text-center">
+                        </div>
+                    </div>
+
+                    <div class="border-l-4 border-gray-100 pl-4 space-y-3 py-2">
+                        <div>
+                            <label class="block text-sm font-bold text-green-600 mb-1">🟢 上車地點</label>
+                            <input type="text" id="pickup" required placeholder="請輸入上車處" class="w-full p-3 border border-gray-200 rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-red-600 mb-1">🔴 下車地點</label>
+                            <input type="text" id="dropoff" required placeholder="請輸入目的地" class="w-full p-3 border border-gray-200 rounded-xl">
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 bg-white border-t border-gray-100 z-30">
+                <button id="submitBtn" onclick="submitBooking()" class="w-full py-4 rounded-xl bg-green-500 text-white text-xl font-bold shadow-lg active:scale-95 transition-transform flex justify-center items-center">
+                    確認叫車
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        // ⚠️ 你的 ID
-        const MY_LIFF_ID = "2008907691-v0O7W8d3";
+        // ==========================================
+        const MY_LIFF_ID = "2008907691-v0O7W8d3"; // 你的 ID
+        // ==========================================
 
-        // 動態載入 SDK 函式 (這是關鍵！)
+        const dom = {
+            loading: document.getElementById('loading-overlay'),
+            app: document.getElementById('app'),
+            userDisplay: document.getElementById('user-display'),
+            btn: document.getElementById('submitBtn'),
+            inputs: {
+                name: document.getElementById('name'),
+                phone: document.getElementById('phone'),
+                date: document.getElementById('date'),
+                time: document.getElementById('time'),
+                pickup: document.getElementById('pickup'),
+                dropoff: document.getElementById('dropoff')
+            }
+        };
+
+        // 載入 SDK (穩定版)
         function loadSDK(callback) {
             const script = document.createElement('script');
             script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-            script.charset = 'utf-8';
-            script.onload = callback; // 下載完才執行 callback
-            script.onerror = () => alert("SDK 下載失敗，請檢查網路");
+            script.onload = callback;
             document.head.appendChild(script);
         }
 
-        // 主程式
-        function main() {
-            document.getElementById('debug-text').innerText = "SDK 就緒，執行 Init...";
-            
-            liff.init({ liffId: MY_LIFF_ID })
-                .then(() => {
-                    document.getElementById('debug-text').innerText = "Init 成功！";
-                    
+        // 初始化
+        window.onload = function() {
+            // 設定預設時間
+            const now = new Date();
+            dom.inputs.date.valueAsDate = now;
+            now.setHours(now.getHours() + 1);
+            dom.inputs.time.value = now.toTimeString().substring(0,5);
+
+            loadSDK(() => {
+                liff.init({ liffId: MY_LIFF_ID }).then(() => {
                     if (!liff.isLoggedIn()) {
                         liff.login();
                         return;
                     }
-                    
                     liff.getProfile().then(profile => {
-                        document.getElementById('user-name').innerText = "Hi, " + profile.displayName;
-                        document.getElementById('loading').classList.add('hidden');
-                        document.getElementById('app').classList.remove('hidden');
+                        dom.userDisplay.innerText = `Hi, ${profile.displayName}`;
+                        dom.inputs.name.value = profile.displayName;
+                        dom.loading.classList.add('hidden');
+                        dom.app.classList.remove('hidden');
                     });
-                })
-                .catch(err => {
-                    alert("啟動錯誤: " + err.message);
                 });
-        }
-
-        // 🚀 程式入口：先下載 SDK，再執行 main
-        window.onload = function() {
-            loadSDK(main);
+            });
         };
+
+        // 送出表單
+        async function submitBooking() {
+            const form = document.getElementById('booking-form');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            dom.btn.disabled = true;
+            dom.btn.innerHTML = `<div class="loader mr-2"></div> 處理中...`;
+            dom.btn.classList.replace('bg-green-500', 'bg-gray-400');
+
+            const data = {
+                pickup: dom.inputs.pickup.value,
+                dropoff: dom.inputs.dropoff.value,
+                date: dom.inputs.date.value,
+                time: dom.inputs.time.value,
+                name: dom.inputs.name.value,
+                phone: dom.inputs.phone.value
+            };
+
+            const msgText = `🚕 新增叫車\n----------------\n👤 乘客：${data.name}\n📞 電話：${data.phone}\n📅 時間：${data.date} ${data.time}\n🟢 上車：${data.pickup}\n🔴 下車：${data.dropoff}`;
+
+            try {
+                // 1. 先嘗試用 LIFF 發送訊息 (最快)
+                if (liff.isInClient()) {
+                    await liff.sendMessages([{ type: 'text', text: msgText }]);
+                }
+
+                // 2. (未來功能) 這裡可以呼叫 GAS 寫入試算表
+                // await fetch('GAS_URL', { ... });
+
+                alert("✅ 預約成功！\n司機將盡快與您聯繫");
+                liff.closeWindow();
+
+            } catch (err) {
+                alert("❌ 發生錯誤：" + err.message);
+                dom.btn.disabled = false;
+                dom.btn.innerHTML = "確認叫車";
+                dom.btn.classList.replace('bg-gray-400', 'bg-green-500');
+            }
+        }
     </script>
 </body>
 </html>
