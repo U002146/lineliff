@@ -22,12 +22,12 @@
             -moz-appearance: none;
             appearance: none;
         }
-        /* 快速標籤的水平捲動隱藏卷軸 */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
         /* 增加 Placeholder 的對比度，讓長輩看得更清楚 */
         ::placeholder { color: #9ca3af; opacity: 1; }
+
+        /* 讓 Swal 的容器層級更高 */
+        .swal2-container { z-index: 10000 !important; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -82,12 +82,10 @@
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <label class="block text-lg font-bold text-green-600">🟢 上車地點</label>
-                                <!-- 快速貼紙 -->
-                                <div class="flex space-x-1 overflow-x-auto no-scrollbar max-w-[60%]">
-                                    <button type="button" onclick="setLoc('pickup', '花蓮火車站')" class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full whitespace-nowrap active:scale-95">🚉 火車站</button>
-                                    <button type="button" onclick="setLoc('pickup', '慈濟醫院')" class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full whitespace-nowrap active:scale-95">🏥 慈濟</button>
-                                    <button type="button" onclick="setLoc('pickup', '門諾醫院')" class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full whitespace-nowrap active:scale-95">🏥 門諾</button>
-                                </div>
+                                <!-- ★★★ 修改：將一排按鈕改成一個「選地點」按鈕 ★★★ -->
+                                <button type="button" onclick="openLocationPicker('pickup')" class="flex items-center space-x-1 px-3 py-1 bg-green-50 text-green-700 text-sm font-bold rounded-full border border-green-200 active:scale-95 transition-transform">
+                                    <span>📍 選地點</span>
+                                </button>
                             </div>
                             <input type="text" id="pickup" required placeholder="請輸入上車處" class="w-full p-4 border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-green-500 outline-none placeholder-gray-400">
                         </div>
@@ -96,12 +94,10 @@
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <label class="block text-lg font-bold text-red-600">🔴 下車地點</label>
-                                <!-- 快速貼紙 -->
-                                <div class="flex space-x-1 overflow-x-auto no-scrollbar max-w-[60%]">
-                                    <button type="button" onclick="setLoc('dropoff', '花蓮火車站')" class="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full whitespace-nowrap active:scale-95">🚉 火車站</button>
-                                    <button type="button" onclick="setLoc('dropoff', '慈濟醫院')" class="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full whitespace-nowrap active:scale-95">🏥 慈濟</button>
-                                    <button type="button" onclick="setLoc('dropoff', '門諾醫院')" class="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full whitespace-nowrap active:scale-95">🏥 門諾</button>
-                                </div>
+                                <!-- ★★★ 修改：將一排按鈕改成一個「選地點」按鈕 ★★★ -->
+                                <button type="button" onclick="openLocationPicker('dropoff')" class="flex items-center space-x-1 px-3 py-1 bg-red-50 text-red-700 text-sm font-bold rounded-full border border-red-200 active:scale-95 transition-transform">
+                                    <span>📍 選地點</span>
+                                </button>
                             </div>
                             <input type="text" id="dropoff" required placeholder="請輸入目的地" class="w-full p-4 border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-red-500 outline-none placeholder-gray-400">
                         </div>
@@ -127,7 +123,7 @@
             <!-- Footer Action -->
             <div class="p-6 bg-white border-t border-gray-100 z-30">
                 <button id="submitBtn" onclick="confirmAndSubmit()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex justify-center items-center">
-                    確認叫車
+                    確認預約
                 </button>
             </div>
         </div>
@@ -154,14 +150,67 @@
             }
         };
 
-        // 快速填寫地點
-        window.setLoc = function(type, value) {
-            const input = document.getElementById(type);
-            input.value = value;
-            // 視覺回饋：閃爍一下背景
-            input.classList.add('bg-gray-100');
-            setTimeout(() => input.classList.remove('bg-gray-100'), 200);
+        // ★★★ 新增：地點清單 (可在這裡輕鬆擴充) ★★★
+        const PRESET_LOCATIONS = [
+            { name: '花蓮火車站', icon: '🚉' },
+            { name: '慈濟醫院', icon: '🏥' },
+            { name: '門諾醫院', icon: '🏥' },
+            { name: '國軍花蓮總醫院', icon: '🏥' },
+            { name: '部立花蓮醫院', icon: '🏥' },
+            { name: '花蓮縣政府', icon: '🏢' },
+            { name: '東大門夜市', icon: '🍢' },
+            { name: '家裡 (手動輸入)', icon: '🏠', value: '' }
+        ];
+
+        let currentTargetInputId = '';
+
+        // ★★★ 新增：開啟地點選擇器 (取代另一個 LIFF) ★★★
+        function openLocationPicker(inputId) {
+            currentTargetInputId = inputId;
+            
+            // 產生按鈕 HTML
+            let buttonsHtml = '<div class="grid grid-cols-2 gap-3 mt-2">';
+            PRESET_LOCATIONS.forEach(loc => {
+                const val = loc.value !== undefined ? loc.value : loc.name;
+                buttonsHtml += `
+                    <button onclick="selectLocation('${val}')" 
+                        class="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-blue-50 border border-gray-200 rounded-xl transition-all active:scale-95">
+                        <span class="text-2xl mb-1">${loc.icon}</span>
+                        <span class="text-base font-bold text-gray-700">${loc.name}</span>
+                    </button>
+                `;
+            });
+            buttonsHtml += '</div>';
+
+            Swal.fire({
+                title: '請選擇常用地點',
+                html: buttonsHtml,
+                showConfirmButton: false,
+                showCloseButton: true,
+                customClass: {
+                    popup: 'rounded-3xl',
+                    content: 'p-0'
+                }
+            });
         }
+
+        // ★★★ 新增：選擇地點後的動作 ★★★
+        // 必須掛載到 window 才能被 Swal HTML 裡的 onclick 呼叫
+        window.selectLocation = function(value) {
+            const input = document.getElementById(currentTargetInputId);
+            input.value = value;
+            
+            // 視覺回饋
+            input.classList.add('bg-blue-50', 'border-blue-300');
+            setTimeout(() => input.classList.remove('bg-blue-50', 'border-blue-300'), 500);
+            
+            // 如果選的是空白 (例如家裡)，自動聚焦讓使用者輸入
+            if (value === '') {
+                input.focus();
+            }
+            
+            Swal.close();
+        };
 
         // 載入 SDK
         function loadSDK(callback) {
@@ -173,7 +222,6 @@
 
         // 初始化
         window.onload = function() {
-            // 設定預設時間
             const now = new Date();
             dom.inputs.date.valueAsDate = now;
             now.setHours(now.getHours() + 1);
@@ -195,7 +243,7 @@
             });
         };
 
-        // 輔助函式：日期格式化 (移除年份，轉為 月/日 (週X))
+        // 輔助函式：日期格式化
         function formatDateFriendly(dateStr) {
             const d = new Date(dateStr);
             const month = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -213,21 +261,19 @@
                 return;
             }
 
-            // 格式化日期
             const friendlyDate = formatDateFriendly(dom.inputs.date.value);
 
             const data = {
                 pickup: dom.inputs.pickup.value,
                 dropoff: dom.inputs.dropoff.value,
                 date: dom.inputs.date.value,
-                friendlyDate: friendlyDate, // 用於顯示
+                friendlyDate: friendlyDate,
                 time: dom.inputs.time.value,
                 name: dom.inputs.name.value,
                 phone: dom.inputs.phone.value,
                 payment: dom.inputs.payment.value
             };
 
-            // ★★★ 二次確認視窗 ★★★
             const result = await Swal.fire({
                 title: '請確認預約資料',
                 html: `
@@ -241,7 +287,7 @@
                 `,
                 icon: 'info',
                 showCancelButton: true,
-                confirmButtonText: '✅ 確認預約', // 改為 "確認預約"
+                confirmButtonText: '✅ 確認預約',
                 cancelButtonText: '❌ 修改',
                 confirmButtonColor: '#10b981',
                 cancelButtonColor: '#d1d5db',
@@ -250,7 +296,6 @@
 
             if (!result.isConfirmed) return;
 
-            // 開始送出
             executeSubmission(data);
         }
 
@@ -260,7 +305,6 @@
             dom.btn.classList.remove('from-green-500', 'to-emerald-600');
             dom.btn.classList.add('bg-gray-400', 'cursor-not-allowed');
 
-            // 移除分隔線，精簡文案
             const msgText = `🗓️ 預約叫車確認單\n👤 乘客：${data.name}\n📞 電話：${data.phone}\n📅 時間：${data.friendlyDate} ${data.time}\n💰 付款：${data.payment}\n🟢 上車：${data.pickup}\n🔴 下車：${data.dropoff}`;
 
             try {
@@ -268,10 +312,7 @@
                     await liff.sendMessages([{ type: 'text', text: msgText }]);
                 }
 
-                // 產生 Google Calendar Link
-                // 格式：https://calendar.google.com/calendar/render?action=TEMPLATE&text={標題}&dates={開始時間}/{結束時間}&details={詳情}&location={地點}
                 const startDateTime = new Date(`${data.date}T${data.time}`).toISOString().replace(/-|:|\.\d\d\d/g, "");
-                // 預設行程 1 小時
                 const endDateTime = new Date(new Date(`${data.date}T${data.time}`).getTime() + 3600000).toISOString().replace(/-|:|\.\d\d\d/g, "");
                 const calTitle = encodeURIComponent(`🚕 計程車預約 (${data.pickup} -> ${data.dropoff})`);
                 const calDetails = encodeURIComponent(`司機電話：(請待確認)\n付款方式：${data.payment}`);
@@ -308,7 +349,6 @@
             }
         }
     </script>
-    <!-- 引入 SweetAlert2 讓提示更好看 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>
