@@ -23,9 +23,7 @@
             appearance: none;
         }
         
-        /* 增加 Placeholder 的對比度，讓長輩看得更清楚 */
         ::placeholder { color: #9ca3af; opacity: 1; }
-
         /* 讓 Swal 的容器層級更高 */
         .swal2-container { z-index: 10000 !important; }
     </style>
@@ -82,7 +80,6 @@
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <label class="block text-lg font-bold text-green-600">🟢 上車地點</label>
-                                <!-- ★★★ 修改：將一排按鈕改成一個「選地點」按鈕 ★★★ -->
                                 <button type="button" onclick="openLocationPicker('pickup')" class="flex items-center space-x-1 px-3 py-1 bg-green-50 text-green-700 text-sm font-bold rounded-full border border-green-200 active:scale-95 transition-transform">
                                     <span>📍 選地點</span>
                                 </button>
@@ -94,7 +91,6 @@
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <label class="block text-lg font-bold text-red-600">🔴 下車地點</label>
-                                <!-- ★★★ 修改：將一排按鈕改成一個「選地點」按鈕 ★★★ -->
                                 <button type="button" onclick="openLocationPicker('dropoff')" class="flex items-center space-x-1 px-3 py-1 bg-red-50 text-red-700 text-sm font-bold rounded-full border border-red-200 active:scale-95 transition-transform">
                                     <span>📍 選地點</span>
                                 </button>
@@ -150,8 +146,10 @@
             }
         };
 
-        // ★★★ 新增：地點清單 (可在這裡輕鬆擴充) ★★★
+        // ★★★ 升級版地點清單 ★★★
+        // 新增了「溫暖的家 (自動記憶)」和「手動輸入」
         const PRESET_LOCATIONS = [
+            { name: '溫暖的家 (自動記憶)', icon: '🏠', value: 'MY_HOME' },
             { name: '花蓮火車站', icon: '🚉' },
             { name: '慈濟醫院', icon: '🏥' },
             { name: '門諾醫院', icon: '🏥' },
@@ -159,22 +157,24 @@
             { name: '部立花蓮醫院', icon: '🏥' },
             { name: '花蓮縣政府', icon: '🏢' },
             { name: '東大門夜市', icon: '🍢' },
-            { name: '家裡 (手動輸入)', icon: '🏠', value: '' }
+            { name: '手動輸入', icon: '✏️', value: '' }
         ];
 
         let currentTargetInputId = '';
 
-        // ★★★ 新增：開啟地點選擇器 (取代另一個 LIFF) ★★★
         function openLocationPicker(inputId) {
             currentTargetInputId = inputId;
-            
-            // 產生按鈕 HTML
             let buttonsHtml = '<div class="grid grid-cols-2 gap-3 mt-2">';
             PRESET_LOCATIONS.forEach(loc => {
                 const val = loc.value !== undefined ? loc.value : loc.name;
+                // 視覺區分：家和手動輸入用不同顏色
+                let bgClass = 'bg-gray-50 hover:bg-blue-50';
+                if(val === 'MY_HOME') bgClass = 'bg-orange-50 hover:bg-orange-100 border-orange-200';
+                if(val === '') bgClass = 'bg-blue-50 hover:bg-blue-100 border-blue-200';
+
                 buttonsHtml += `
                     <button onclick="selectLocation('${val}')" 
-                        class="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-blue-50 border border-gray-200 rounded-xl transition-all active:scale-95">
+                        class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl transition-all active:scale-95 ${bgClass}">
                         <span class="text-2xl mb-1">${loc.icon}</span>
                         <span class="text-base font-bold text-gray-700">${loc.name}</span>
                     </button>
@@ -187,32 +187,63 @@
                 html: buttonsHtml,
                 showConfirmButton: false,
                 showCloseButton: true,
-                customClass: {
-                    popup: 'rounded-3xl',
-                    content: 'p-0'
-                }
+                customClass: { popup: 'rounded-3xl', content: 'p-0' }
             });
         }
 
-        // ★★★ 新增：選擇地點後的動作 ★★★
-        // 必須掛載到 window 才能被 Swal HTML 裡的 onclick 呼叫
+        // ★★★ 核心邏輯升級 ★★★
         window.selectLocation = function(value) {
             const input = document.getElementById(currentTargetInputId);
-            input.value = value;
             
-            // 視覺回饋
-            input.classList.add('bg-blue-50', 'border-blue-300');
-            setTimeout(() => input.classList.remove('bg-blue-50', 'border-blue-300'), 500);
-            
-            // 如果選的是空白 (例如家裡)，自動聚焦讓使用者輸入
-            if (value === '') {
-                input.focus();
+            // 處理「溫暖的家」記憶邏輯
+            if (value === 'MY_HOME') {
+                const savedHome = localStorage.getItem('taxi_home_address');
+                if (savedHome) {
+                    // 有記憶，直接填入
+                    input.value = savedHome;
+                    flashInput(input);
+                    Swal.close();
+                } else {
+                    // 沒記憶，詢問並儲存
+                    Swal.fire({
+                        title: '設定住家地址',
+                        input: 'text',
+                        inputLabel: '輸入一次，以後自動帶入',
+                        inputPlaceholder: '例如：花蓮市中正路100號',
+                        showCancelButton: true,
+                        confirmButtonText: '記住地址',
+                        cancelButtonText: '取消'
+                    }).then((result) => {
+                        if (result.isConfirmed && result.value) {
+                            localStorage.setItem('taxi_home_address', result.value);
+                            input.value = result.value;
+                            flashInput(input);
+                        }
+                    });
+                }
+                return; // 家的邏輯處理完畢，直接返回
             }
-            
-            Swal.close();
+
+            // 一般地點 或 手動輸入
+            Swal.close(); // 先關閉彈窗
+
+            // 如果是手動輸入 (value為空)，使用 setTimeout 解決焦點被搶走的問題
+            if (value === '') {
+                setTimeout(() => {
+                    input.value = ''; // 清空欄位方便輸入
+                    input.focus();    // ★★★ 關鍵：延遲聚焦，鍵盤才會彈出來 ★★★
+                }, 300); // 延遲 300ms 等彈窗動畫結束
+            } else {
+                input.value = value;
+                flashInput(input);
+            }
         };
 
-        // 載入 SDK
+        function flashInput(input) {
+            input.classList.add('bg-blue-50', 'border-blue-300');
+            setTimeout(() => input.classList.remove('bg-blue-50', 'border-blue-300'), 500);
+        }
+
         function loadSDK(callback) {
             const script = document.createElement('script');
             script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
@@ -220,7 +251,6 @@
             document.head.appendChild(script);
         }
 
-        // 初始化
         window.onload = function() {
             const now = new Date();
             dom.inputs.date.valueAsDate = now;
@@ -243,7 +273,6 @@
             });
         };
 
-        // 輔助函式：日期格式化 (只保留 月/日，移除星期以防換行)
         function formatDateFriendly(dateStr) {
             const d = new Date(dateStr);
             const month = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -251,7 +280,6 @@
             return `${month}/${day}`;
         }
 
-        // 二次確認 + 送出
         async function confirmAndSubmit() {
             const form = document.getElementById('booking-form');
             if (!form.checkValidity()) {
