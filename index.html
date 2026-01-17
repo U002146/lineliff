@@ -259,7 +259,12 @@
             }
 
             const now = new Date();
-            dom.inputs.date.valueAsDate = now;
+            // ★★★ 修正點：使用手動格式化日期，避免 valueAsDate 的 UTC 導致早上變昨天的問題 ★★★
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            dom.inputs.date.value = `${year}-${month}-${day}`;
+
             // ★★★ 預設時間：現在 + 30 分鐘 ★★★
             now.setMinutes(now.getMinutes() + 30);
             dom.inputs.time.value = now.toTimeString().substring(0,5);
@@ -280,11 +285,14 @@
             });
         };
 
+        // 輔助函式：日期格式化 (只保留 月/日，移除星期以防換行，純字串處理避免時區錯誤)
         function formatDateFriendly(dateStr) {
-            const d = new Date(dateStr);
-            const month = (d.getMonth() + 1).toString().padStart(2, '0');
-            const day = d.getDate().toString().padStart(2, '0');
-            return `${month}/${day}`;
+            if (!dateStr) return "";
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[1]}/${parts[2]}`;
+            }
+            return dateStr;
         }
 
         async function confirmAndSubmit() {
@@ -294,10 +302,18 @@
                 return;
             }
 
-            // ★★★ 30分鐘防呆檢查 ★★★
-            const selectedDateTime = new Date(`${dom.inputs.date.value}T${dom.inputs.time.value}`);
+            // ★★★ 30分鐘防呆檢查 (修正版) ★★★
+            // 重新讀取目前輸入的時間，並與現在時間比較
+            const inputDateStr = dom.inputs.date.value;
+            const inputTimeStr = dom.inputs.time.value;
+            
+            // 建立使用者選擇的時間物件
+            const selectedDateTime = new Date(`${inputDateStr}T${inputTimeStr}`);
+            
+            // 建立現在時間
             const now = new Date();
-            const minTime = new Date(now.getTime() + 29 * 60 * 1000); // 寬限一點點設 29 分
+            // 設定最小允許時間為現在 + 29 分鐘 (留點寬限)
+            const minTime = new Date(now.getTime() + 29 * 60 * 1000); 
 
             if (selectedDateTime < minTime) {
                 Swal.fire({
