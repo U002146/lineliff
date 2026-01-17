@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>預約叫車服務</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2.22.1/sdk.js"></script>
+    <style>
+        input, select, textarea { font-size: 16px !important; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+
+    <!-- Loading -->
+    <div id="loading" class="fixed inset-0 bg-white flex flex-col items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p class="mt-4 text-gray-500">正在連線 LINE...</p>
+    </div>
+
+    <!-- 主畫面 -->
+    <div id="app" class="hidden max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <header class="bg-blue-600 p-6 text-white text-center">
+            <h1 class="text-2xl font-bold">🚕 預約叫車單</h1>
+            <p id="user-name" class="text-sm mt-1 text-blue-100">載入中...</p>
+        </header>
+
+        <form id="form" class="p-6 space-y-4">
+            <div>
+                <label class="block font-bold text-gray-700">📞 電話</label>
+                <input type="tel" id="phone" required class="w-full p-3 border rounded-lg bg-gray-50">
+            </div>
+            <div>
+                <label class="block font-bold text-gray-700">📍 上車地點</label>
+                <input type="text" id="pickup" required class="w-full p-3 border rounded-lg">
+            </div>
+             <div>
+                <label class="block font-bold text-gray-700">🏁 下車地點</label>
+                <input type="text" id="dropoff" required class="w-full p-3 border rounded-lg">
+            </div>
+            <button type="button" onclick="sendMsg()" class="w-full py-4 bg-green-500 text-white font-bold rounded-lg text-lg hover:bg-green-600">確認叫車</button>
+        </form>
+    </div>
+
+    <script>
+        // ⚠️ 把你的 ID 填進去
+        const LIFF_ID = "2008907691-v0O7W8d3";
+
+        window.onload = async function() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+                const profile = await liff.getProfile();
+                document.getElementById('user-name').innerText = "Hi, " + profile.displayName;
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+            } catch (err) {
+                alert("啟動失敗: " + err.message);
+            }
+        };
+
+        async function sendMsg() {
+            const phone = document.getElementById('phone').value;
+            const pickup = document.getElementById('pickup').value;
+            const dropoff = document.getElementById('dropoff').value;
+
+            if(!phone || !pickup || !dropoff) {
+                alert("請填寫完整資料");
+                return;
+            }
+
+            const msg = `🚕 新預約\n👤 電話: ${phone}\n🟢 上車: ${pickup}\n🔴 下車: ${dropoff}`;
+
+            try {
+                if (liff.isInClient()) {
+                    await liff.sendMessages([{ type: 'text', text: msg }]);
+                    liff.closeWindow();
+                } else {
+                    alert("測試模式:\n" + msg);
+                }
+            } catch (err) {
+                alert("傳送失敗: " + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
