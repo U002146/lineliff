@@ -158,8 +158,9 @@
         };
 
         const PRESET_LOCATIONS = [
-            { name: '溫暖的家 (自動記憶)', icon: '🏠', value: 'MY_HOME' },
-            { name: '手動輸入', icon: '✏️', value: '' }, // ★ 已移動至第二順位
+            // ★ 修改：改為「常用地址」，Value 改為 FAV_ADDR
+            { name: '常用地址 (自動記憶)', icon: '⭐', value: 'FAV_ADDR' },
+            { name: '手動輸入', icon: '✏️', value: 'MANUAL_INPUT' }, 
             { name: '花蓮前站', icon: '🚉' },
             { name: '花蓮後站', icon: '🚉' },
             { name: '吉安車站', icon: '🚉' },
@@ -181,16 +182,11 @@
         let currentTargetInputId = '';
 
         // ★★★ 日期顯示同步 (核心邏輯) ★★★
-        // 當使用者在透明的 date input 選完日期，這裡負責更新那個「假的」text input
         function syncDateDisplay() {
             const val = dom.inputs.date.value;
             if (val) {
-                // val 格式是 2026-01-18
                 const parts = val.split('-');
-                // 只顯示 月/日
                 dom.inputs.dateDisplay.value = `${parts[1]}/${parts[2]}`;
-                
-                // 日期變動也要檢查時間是否合法 (例如原本選明天8:00，改成今天8:00可能就過期了)
                 checkTimeValidity(); 
             }
         }
@@ -200,14 +196,13 @@
             const inputDateStr = dom.inputs.date.value;
             const inputTimeStr = dom.inputs.time.value;
             
-            if (!inputDateStr || !inputTimeStr) return; // 還沒填完不檢查
+            if (!inputDateStr || !inputTimeStr) return;
 
             const selectedDateTime = new Date(`${inputDateStr}T${inputTimeStr}`);
             const now = new Date();
-            const minTime = new Date(now.getTime() + 29 * 60 * 1000); // 緩衝29分鐘
+            const minTime = new Date(now.getTime() + 29 * 60 * 1000);
 
             if (selectedDateTime < minTime) {
-                // 時間太趕了！
                 Swal.fire({
                     icon: 'warning',
                     title: '時間太趕囉！',
@@ -216,21 +211,12 @@
                     showConfirmButton: false
                 });
 
-                // 自動修正為現在 + 30 分鐘
-                // 注意：這裡要處理跨日問題，但為了簡單UX，我們先只處理時間
-                // 如果現在是 23:50，+30分會跨日，這裡簡單處理為設定到最小合法時間
-                
-                // 重新計算一個合法的時間 (現在+31分)
                 const validTime = new Date(now.getTime() + 31 * 60 * 1000);
-                
-                // 更新日期欄位 (萬一跨日了)
                 const year = validTime.getFullYear();
                 const month = String(validTime.getMonth() + 1).padStart(2, '0');
                 const day = String(validTime.getDate()).padStart(2, '0');
                 dom.inputs.date.value = `${year}-${month}-${day}`;
-                syncDateDisplay(); // 更新顯示
-
-                // 更新時間欄位
+                syncDateDisplay();
                 dom.inputs.time.value = validTime.toTimeString().substring(0,5);
             }
         }
@@ -241,8 +227,10 @@
             PRESET_LOCATIONS.forEach(loc => {
                 const val = loc.value !== undefined ? loc.value : loc.name;
                 let bgClass = 'bg-gray-50 hover:bg-blue-50';
-                if(val === 'MY_HOME') bgClass = 'bg-orange-50 hover:bg-orange-100 border-orange-200';
-                if(val === '') bgClass = 'bg-blue-50 hover:bg-blue-100 border-blue-200';
+                
+                // 針對不同按鈕給予不同顏色提示
+                if(val === 'FAV_ADDR') bgClass = 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200'; // 常用地址改為黃色系
+                if(val === 'MANUAL_INPUT') bgClass = 'bg-blue-50 hover:bg-blue-100 border-blue-200';
 
                 buttonsHtml += `
                     <button onclick="selectLocation('${val}')" 
@@ -263,47 +251,97 @@
             });
         }
 
+        // ★★★ 核心邏輯優化：常用地址與手動輸入 ★★★
         window.selectLocation = function(value) {
             const input = document.getElementById(currentTargetInputId);
             
-            if (value === 'MY_HOME') {
-                const savedHome = localStorage.getItem('taxi_home_address');
-                if (savedHome) {
-                    input.value = savedHome;
-                    flashInput(input);
-                    Swal.close();
-                } else {
+            // 1. 常用地址 (升級版)
+            if (value === 'FAV_ADDR') {
+                const savedAddr = localStorage.getItem('taxi_fav_addr'); // Key 變更為 taxi_fav_addr
+                
+                if (savedAddr) {
+                    // 如果已經有地址，詢問確認或修改
                     Swal.fire({
-                        title: '設定住家地址',
-                        input: 'text',
-                        inputLabel: '輸入一次，以後自動帶入',
-                        inputPlaceholder: '例如：花蓮市中正路100號',
-                        showCancelButton: true,
-                        confirmButtonText: '記住地址',
-                        cancelButtonText: '取消'
+                        title: '📍 這是您的常用地址嗎？',
+                        text: savedAddr,
+                        icon: 'question',
+                        showDenyButton: true,
+                        confirmButtonText: '是的，填入',
+                        denyButtonText: '不，我要修改',
+                        confirmButtonColor: '#10b981', // 綠色
+                        denyButtonColor: '#ef4444',    // 紅色
+                        reverseButtons: true
                     }).then((result) => {
-                        if (result.isConfirmed && result.value) {
-                            localStorage.setItem('taxi_home_address', result.value);
-                            input.value = result.value;
+                        if (result.isConfirmed) {
+                            input.value = savedAddr;
                             flashInput(input);
+                        } else if (result.isDenied) {
+                            promptSetFavAddress(input); // 進入修改流程
                         }
                     });
+                } else {
+                    // 第一次設定
+                    promptSetFavAddress(input);
                 }
                 return;
             }
 
-            Swal.close();
-
-            if (value === '') {
+            // 2. 手動輸入 (修復當機)
+            if (value === 'MANUAL_INPUT') {
+                Swal.close(); 
+                
                 setTimeout(() => {
                     input.value = '';
                     input.focus();
+                    
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 2000,
+                        timerProgressBar: true
+                    });
+                    Toast.fire({
+                        icon: 'info',
+                        title: '請輸入地址 ✏️'
+                    });
                 }, 300);
-            } else {
-                input.value = value;
-                flashInput(input);
+                return;
             }
+
+            // 3. 一般地點
+            Swal.close();
+            input.value = value;
+            flashInput(input);
         };
+
+        // 獨立出「設定常用地址」的功能函式
+        function promptSetFavAddress(input) {
+            Swal.fire({
+                title: '⭐ 設定常用地址',
+                input: 'text',
+                inputLabel: '輸入一次，以後自動帶入',
+                inputPlaceholder: '例如：花蓮市中正路100號',
+                showCancelButton: true,
+                confirmButtonText: '儲存並填入',
+                cancelButtonText: '取消',
+                confirmButtonColor: '#fbbf24' // 使用黃色系按鈕
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    localStorage.setItem('taxi_fav_addr', result.value);
+                    input.value = result.value;
+                    flashInput(input);
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: '已記憶！',
+                        text: '下次點「常用地址」就會自動帶入囉',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            });
+        }
 
         function flashInput(input) {
             input.classList.add('bg-blue-50', 'border-blue-300');
@@ -358,7 +396,6 @@
             });
         };
 
-        // 這裡只需要簡單回傳 text input 的值即可，因為我們已經在 syncDateDisplay 處理過了
         function getDateForMessage() {
             return dom.inputs.dateDisplay.value; 
         }
@@ -370,7 +407,6 @@
                 return;
             }
             
-            // 送出前再檢查一次時間 (防止用戶停留在畫面太久)
             checkTimeValidity();
 
             const friendlyDate = getDateForMessage();
@@ -426,7 +462,7 @@
                     await liff.sendMessages([{ type: 'text', text: msgText }]);
                 }
 
-                // 行事曆連結需要完整的 YYYY-MM-DD
+                // 行事曆連結
                 const startDateTime = new Date(`${data.date}T${data.time}`).toISOString().replace(/-|:|\.\d\d\d/g, "");
                 const endDateTime = new Date(new Date(`${data.date}T${data.time}`).getTime() + 3600000).toISOString().replace(/-|:|\.\d\d\d/g, "");
                 const calTitle = encodeURIComponent(`🚕 計程車預約 (${data.pickup} -> ${data.dropoff})`);
