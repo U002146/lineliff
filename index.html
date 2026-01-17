@@ -22,9 +22,7 @@
             -moz-appearance: none;
             appearance: none;
         }
-        
         ::placeholder { color: #9ca3af; opacity: 1; }
-        /* 讓 Swal 的容器層級更高 */
         .swal2-container { z-index: 10000 !important; }
     </style>
 </head>
@@ -45,7 +43,6 @@
                     <h1 class="text-3xl font-extrabold tracking-wide">🚕 預約叫車</h1>
                     <p id="user-display" class="text-blue-100 text-base mt-2 font-medium">載入使用者...</p>
                 </div>
-                <!-- 裝飾用背景圓 -->
                 <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-10 rounded-full"></div>
                 <div class="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 bg-white opacity-10 rounded-full"></div>
             </header>
@@ -63,18 +60,23 @@
 
                     <!-- 日期與時間 (Grid) -->
                     <div class="grid grid-cols-2 gap-4">
-                        <div>
+                        <div class="relative">
                             <label class="block font-bold text-gray-700 mb-2 text-lg">📅 日期</label>
-                            <input type="date" id="date" required class="w-full p-4 bg-white border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <!-- ★★★ 視覺層：只顯示 01/18，長輩看這個 ★★★ -->
+                            <input type="text" id="date-display" readonly class="w-full p-4 bg-white border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold text-gray-700">
+                            
+                            <!-- ★★★ 邏輯層：真正的日期選單，透明覆蓋在上面 ★★★ -->
+                            <input type="date" id="date" required onchange="syncDateDisplay()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer top-8 z-10">
                         </div>
                         <div>
                             <label class="block font-bold text-gray-700 mb-2 text-lg">🕒 時間</label>
-                            <input type="time" id="time" required class="w-full p-4 bg-white border border-gray-200 rounded-2xl text-center text-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <!-- ★★★ 加入 onchange 事件，一選完馬上檢查 ★★★ -->
+                            <input type="time" id="time" required onchange="checkTimeValidity()" class="w-full p-4 bg-white border border-gray-200 rounded-2xl text-center text-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                     </div>
                     <!-- 提示文字 -->
                     <div class="text-xs text-center text-gray-400 -mt-2">
-                        ⚠️ 請至少預約 30 分鐘後的時間
+                        ⚠️ 系統自動防呆：僅能預約 30 分鐘後
                     </div>
 
                     <!-- 地點區塊 -->
@@ -130,9 +132,7 @@
     </div>
 
     <script>
-        // ==========================================
-        const MY_LIFF_ID = "2008907691-v0O7W8d3"; // 你的 LIFF ID
-        // ==========================================
+        const MY_LIFF_ID = "2008907691-v0O7W8d3";
 
         const dom = {
             loading: document.getElementById('loading-overlay'),
@@ -143,6 +143,7 @@
                 name: document.getElementById('name'),
                 phone: document.getElementById('phone'),
                 date: document.getElementById('date'),
+                dateDisplay: document.getElementById('date-display'),
                 time: document.getElementById('time'),
                 pickup: document.getElementById('pickup'),
                 dropoff: document.getElementById('dropoff'),
@@ -163,6 +164,61 @@
         ];
 
         let currentTargetInputId = '';
+
+        // ★★★ 日期顯示同步 (核心邏輯) ★★★
+        // 當使用者在透明的 date input 選完日期，這裡負責更新那個「假的」text input
+        function syncDateDisplay() {
+            const val = dom.inputs.date.value;
+            if (val) {
+                // val 格式是 2026-01-18
+                const parts = val.split('-');
+                // 只顯示 月/日
+                dom.inputs.dateDisplay.value = `${parts[1]}/${parts[2]}`;
+                
+                // 日期變動也要檢查時間是否合法 (例如原本選明天8:00，改成今天8:00可能就過期了)
+                checkTimeValidity(); 
+            }
+        }
+
+        // ★★★ 30分鐘即時檢查與自動修正 ★★★
+        function checkTimeValidity() {
+            const inputDateStr = dom.inputs.date.value;
+            const inputTimeStr = dom.inputs.time.value;
+            
+            if (!inputDateStr || !inputTimeStr) return; // 還沒填完不檢查
+
+            const selectedDateTime = new Date(`${inputDateStr}T${inputTimeStr}`);
+            const now = new Date();
+            const minTime = new Date(now.getTime() + 29 * 60 * 1000); // 緩衝29分鐘
+
+            if (selectedDateTime < minTime) {
+                // 時間太趕了！
+                Swal.fire({
+                    icon: 'warning',
+                    title: '時間太趕囉！',
+                    text: '司機需要準備，已為您自動調整為 30 分鐘後',
+                    timer: 2500,
+                    showConfirmButton: false
+                });
+
+                // 自動修正為現在 + 30 分鐘
+                // 注意：這裡要處理跨日問題，但為了簡單UX，我們先只處理時間
+                // 如果現在是 23:50，+30分會跨日，這裡簡單處理為設定到最小合法時間
+                
+                // 重新計算一個合法的時間 (現在+31分)
+                const validTime = new Date(now.getTime() + 31 * 60 * 1000);
+                
+                // 更新日期欄位 (萬一跨日了)
+                const year = validTime.getFullYear();
+                const month = String(validTime.getMonth() + 1).padStart(2, '0');
+                const day = String(validTime.getDate()).padStart(2, '0');
+                dom.inputs.date.value = `${year}-${month}-${day}`;
+                syncDateDisplay(); // 更新顯示
+
+                // 更新時間欄位
+                dom.inputs.time.value = validTime.toTimeString().substring(0,5);
+            }
+        }
 
         function openLocationPicker(inputId) {
             currentTargetInputId = inputId;
@@ -247,10 +303,8 @@
         }
 
         window.onload = function() {
-            // ★★★ 自動帶入手機記憶 ★★★
             const savedPhone = localStorage.getItem('taxi_user_phone');
             if (savedPhone) {
-                // 防呆：如果開頭不是0，自動補上
                 if (savedPhone.length === 9 && !savedPhone.startsWith('0')) {
                     dom.inputs.phone.value = '0' + savedPhone;
                 } else {
@@ -259,13 +313,17 @@
             }
 
             const now = new Date();
-            // ★★★ 修正點：使用手動格式化日期，避免 valueAsDate 的 UTC 導致早上變昨天的問題 ★★★
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
+            
+            // 設定真實日期
             dom.inputs.date.value = `${year}-${month}-${day}`;
+            
+            // 設定顯示日期 (強制只顯示 MM/DD)
+            syncDateDisplay();
 
-            // ★★★ 預設時間：現在 + 30 分鐘 ★★★
+            // 預設時間：現在 + 30 分鐘
             now.setMinutes(now.getMinutes() + 30);
             dom.inputs.time.value = now.toTimeString().substring(0,5);
 
@@ -285,16 +343,9 @@
             });
         };
 
-        // 輔助函式：日期格式化 (只保留 月/日，直接對字串切分，完全避開 UTC 時區問題)
-        function formatDateFriendly(dateStr) {
-            if (!dateStr) return "";
-            // dateStr 格式為 "2026-01-18"
-            const parts = dateStr.split('-');
-            if (parts.length === 3) {
-                // parts[1] 是月份，parts[2] 是日期
-                return `${parts[1]}/${parts[2]}`;
-            }
-            return dateStr;
+        // 這裡只需要簡單回傳 text input 的值即可，因為我們已經在 syncDateDisplay 處理過了
+        function getDateForMessage() {
+            return dom.inputs.dateDisplay.value; 
         }
 
         async function confirmAndSubmit() {
@@ -303,39 +354,17 @@
                 form.reportValidity();
                 return;
             }
-
-            // ★★★ 30分鐘防呆檢查 (修正版) ★★★
-            // 重新讀取目前輸入的時間，並與現在時間比較
-            const inputDateStr = dom.inputs.date.value;
-            const inputTimeStr = dom.inputs.time.value;
             
-            // 建立使用者選擇的時間物件
-            const selectedDateTime = new Date(`${inputDateStr}T${inputTimeStr}`);
-            
-            // 建立現在時間
-            const now = new Date();
-            // 設定最小允許時間為現在 + 29 分鐘 (留點寬限)
-            const minTime = new Date(now.getTime() + 29 * 60 * 1000); 
+            // 送出前再檢查一次時間 (防止用戶停留在畫面太久)
+            checkTimeValidity();
 
-            if (selectedDateTime < minTime) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: '時間太趕囉！',
-                    html: '司機需要準備時間<br>請預約 <b>30 分鐘以後</b> 的時間',
-                    confirmButtonText: '好，我修改',
-                    confirmButtonColor: '#f59e0b'
-                });
-                return;
-            }
-
-            // 使用純字串處理的格式化函式
-            const friendlyDate = formatDateFriendly(dom.inputs.date.value);
+            const friendlyDate = getDateForMessage();
 
             const data = {
                 pickup: dom.inputs.pickup.value,
                 dropoff: dom.inputs.dropoff.value,
-                date: dom.inputs.date.value,
-                friendlyDate: friendlyDate,
+                date: dom.inputs.date.value, // 真實日期 YYYY-MM-DD
+                friendlyDate: friendlyDate,  // 顯示日期 MM/DD
                 time: dom.inputs.time.value,
                 name: dom.inputs.name.value,
                 phone: dom.inputs.phone.value,
@@ -368,7 +397,6 @@
         }
 
         async function executeSubmission(data) {
-            // ★★★ 儲存電話號碼 ★★★
             localStorage.setItem('taxi_user_phone', data.phone);
 
             dom.btn.disabled = true;
@@ -383,6 +411,7 @@
                     await liff.sendMessages([{ type: 'text', text: msgText }]);
                 }
 
+                // 行事曆連結需要完整的 YYYY-MM-DD
                 const startDateTime = new Date(`${data.date}T${data.time}`).toISOString().replace(/-|:|\.\d\d\d/g, "");
                 const endDateTime = new Date(new Date(`${data.date}T${data.time}`).getTime() + 3600000).toISOString().replace(/-|:|\.\d\d\d/g, "");
                 const calTitle = encodeURIComponent(`🚕 計程車預約 (${data.pickup} -> ${data.dropoff})`);
