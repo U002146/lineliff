@@ -72,6 +72,10 @@
                             <input type="time" id="time" required class="w-full p-4 bg-white border border-gray-200 rounded-2xl text-center text-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                     </div>
+                    <!-- 提示文字 -->
+                    <div class="text-xs text-center text-gray-400 -mt-2">
+                        ⚠️ 司機需要準備，請至少預約 30 分鐘後的時間
+                    </div>
 
                     <!-- 地點區塊 -->
                     <div class="border-l-4 border-gray-100 pl-4 space-y-5 py-2">
@@ -146,8 +150,6 @@
             }
         };
 
-        // ★★★ 升級版地點清單 ★★★
-        // 新增了「溫暖的家 (自動記憶)」和「手動輸入」
         const PRESET_LOCATIONS = [
             { name: '溫暖的家 (自動記憶)', icon: '🏠', value: 'MY_HOME' },
             { name: '花蓮火車站', icon: '🚉' },
@@ -167,7 +169,6 @@
             let buttonsHtml = '<div class="grid grid-cols-2 gap-3 mt-2">';
             PRESET_LOCATIONS.forEach(loc => {
                 const val = loc.value !== undefined ? loc.value : loc.name;
-                // 視覺區分：家和手動輸入用不同顏色
                 let bgClass = 'bg-gray-50 hover:bg-blue-50';
                 if(val === 'MY_HOME') bgClass = 'bg-orange-50 hover:bg-orange-100 border-orange-200';
                 if(val === '') bgClass = 'bg-blue-50 hover:bg-blue-100 border-blue-200';
@@ -191,20 +192,16 @@
             });
         }
 
-        // ★★★ 核心邏輯升級 ★★★
         window.selectLocation = function(value) {
             const input = document.getElementById(currentTargetInputId);
             
-            // 處理「溫暖的家」記憶邏輯
             if (value === 'MY_HOME') {
                 const savedHome = localStorage.getItem('taxi_home_address');
                 if (savedHome) {
-                    // 有記憶，直接填入
                     input.value = savedHome;
                     flashInput(input);
                     Swal.close();
                 } else {
-                    // 沒記憶，詢問並儲存
                     Swal.fire({
                         title: '設定住家地址',
                         input: 'text',
@@ -221,18 +218,16 @@
                         }
                     });
                 }
-                return; // 家的邏輯處理完畢，直接返回
+                return;
             }
 
-            // 一般地點 或 手動輸入
-            Swal.close(); // 先關閉彈窗
+            Swal.close();
 
-            // 如果是手動輸入 (value為空)，使用 setTimeout 解決焦點被搶走的問題
             if (value === '') {
                 setTimeout(() => {
-                    input.value = ''; // 清空欄位方便輸入
-                    input.focus();    // ★★★ 關鍵：延遲聚焦，鍵盤才會彈出來 ★★★
-                }, 300); // 延遲 300ms 等彈窗動畫結束
+                    input.value = '';
+                    input.focus();
+                }, 300);
             } else {
                 input.value = value;
                 flashInput(input);
@@ -252,9 +247,21 @@
         }
 
         window.onload = function() {
+            // ★★★ 自動帶入手機記憶 ★★★
+            const savedPhone = localStorage.getItem('taxi_user_phone');
+            if (savedPhone) {
+                // 防呆：如果開頭不是0，自動補上
+                if (savedPhone.length === 9 && !savedPhone.startsWith('0')) {
+                    dom.inputs.phone.value = '0' + savedPhone;
+                } else {
+                    dom.inputs.phone.value = savedPhone;
+                }
+            }
+
             const now = new Date();
             dom.inputs.date.valueAsDate = now;
-            now.setHours(now.getHours() + 1);
+            // ★★★ 預設時間：現在 + 30 分鐘 ★★★
+            now.setMinutes(now.getMinutes() + 30);
             dom.inputs.time.value = now.toTimeString().substring(0,5);
 
             loadSDK(() => {
@@ -284,6 +291,22 @@
             const form = document.getElementById('booking-form');
             if (!form.checkValidity()) {
                 form.reportValidity();
+                return;
+            }
+
+            // ★★★ 30分鐘防呆檢查 ★★★
+            const selectedDateTime = new Date(`${dom.inputs.date.value}T${dom.inputs.time.value}`);
+            const now = new Date();
+            const minTime = new Date(now.getTime() + 29 * 60 * 1000); // 寬限一點點設 29 分
+
+            if (selectedDateTime < minTime) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '時間太趕囉！',
+                    html: '司機需要準備時間<br>請預約 <b>30 分鐘以後</b> 的時間',
+                    confirmButtonText: '好，我修改',
+                    confirmButtonColor: '#f59e0b'
+                });
                 return;
             }
 
@@ -326,6 +349,9 @@
         }
 
         async function executeSubmission(data) {
+            // ★★★ 儲存電話號碼 ★★★
+            localStorage.setItem('taxi_user_phone', data.phone);
+
             dom.btn.disabled = true;
             dom.btn.innerHTML = `<div class="loader mr-3"></div> 資料傳送中...`;
             dom.btn.classList.remove('from-green-500', 'to-emerald-600');
