@@ -11,7 +11,7 @@
         .hidden { display: none !important; }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* 自定義選單箭頭，增加質感 */
+        /* 自定義選單箭頭 */
         select {
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
             background-position: right 0.5rem center;
@@ -22,6 +22,12 @@
             -moz-appearance: none;
             appearance: none;
         }
+        /* 快速標籤的水平捲動隱藏卷軸 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 增加 Placeholder 的對比度，讓長輩看得更清楚 */
+        ::placeholder { color: #9ca3af; opacity: 1; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -54,7 +60,7 @@
                     <!-- 聯絡電話 -->
                     <div>
                         <label class="block font-bold text-gray-700 mb-2 text-lg">📞 聯絡電話</label>
-                        <input type="tel" id="phone" required placeholder="09xx-xxx-xxx" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-lg shadow-sm">
+                        <input type="tel" id="phone" required placeholder="09xx-xxx-xxx" inputmode="tel" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-lg shadow-sm placeholder-gray-400">
                     </div>
 
                     <!-- 日期與時間 (Grid) -->
@@ -70,18 +76,38 @@
                     </div>
 
                     <!-- 地點區塊 -->
-                    <div class="border-l-4 border-gray-100 pl-4 space-y-4 py-2">
+                    <div class="border-l-4 border-gray-100 pl-4 space-y-5 py-2">
+                        
+                        <!-- 上車地點 -->
                         <div>
-                            <label class="block text-lg font-bold text-green-600 mb-2">🟢 上車地點</label>
-                            <input type="text" id="pickup" required placeholder="請輸入上車處" class="w-full p-4 border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-green-500 outline-none">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-lg font-bold text-green-600">🟢 上車地點</label>
+                                <!-- 快速貼紙 -->
+                                <div class="flex space-x-1 overflow-x-auto no-scrollbar max-w-[60%]">
+                                    <button type="button" onclick="setLoc('pickup', '花蓮火車站')" class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full whitespace-nowrap active:scale-95">🚉 火車站</button>
+                                    <button type="button" onclick="setLoc('pickup', '慈濟醫院')" class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full whitespace-nowrap active:scale-95">🏥 慈濟</button>
+                                    <button type="button" onclick="setLoc('pickup', '門諾醫院')" class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full whitespace-nowrap active:scale-95">🏥 門諾</button>
+                                </div>
+                            </div>
+                            <input type="text" id="pickup" required placeholder="請輸入上車處" class="w-full p-4 border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-green-500 outline-none placeholder-gray-400">
                         </div>
+
+                        <!-- 下車地點 -->
                         <div>
-                            <label class="block text-lg font-bold text-red-600 mb-2">🔴 下車地點</label>
-                            <input type="text" id="dropoff" required placeholder="請輸入目的地" class="w-full p-4 border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-red-500 outline-none">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-lg font-bold text-red-600">🔴 下車地點</label>
+                                <!-- 快速貼紙 -->
+                                <div class="flex space-x-1 overflow-x-auto no-scrollbar max-w-[60%]">
+                                    <button type="button" onclick="setLoc('dropoff', '花蓮火車站')" class="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full whitespace-nowrap active:scale-95">🚉 火車站</button>
+                                    <button type="button" onclick="setLoc('dropoff', '慈濟醫院')" class="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full whitespace-nowrap active:scale-95">🏥 慈濟</button>
+                                    <button type="button" onclick="setLoc('dropoff', '門諾醫院')" class="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full whitespace-nowrap active:scale-95">🏥 門諾</button>
+                                </div>
+                            </div>
+                            <input type="text" id="dropoff" required placeholder="請輸入目的地" class="w-full p-4 border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-red-500 outline-none placeholder-gray-400">
                         </div>
                     </div>
 
-                    <!-- 新增：付款方式 (下拉選單) -->
+                    <!-- 付款方式 -->
                     <div class="pt-2 border-t border-gray-100">
                         <label class="block font-bold text-gray-700 mb-2 text-lg">💰 付款方式</label>
                         <select id="payment" class="w-full p-4 bg-yellow-50 border border-yellow-200 rounded-2xl text-lg font-medium text-gray-800 shadow-sm focus:ring-2 focus:ring-yellow-400 outline-none cursor-pointer">
@@ -100,7 +126,7 @@
 
             <!-- Footer Action -->
             <div class="p-6 bg-white border-t border-gray-100 z-30">
-                <button id="submitBtn" onclick="submitBooking()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex justify-center items-center">
+                <button id="submitBtn" onclick="confirmAndSubmit()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex justify-center items-center">
                     確認叫車
                 </button>
             </div>
@@ -124,9 +150,18 @@
                 time: document.getElementById('time'),
                 pickup: document.getElementById('pickup'),
                 dropoff: document.getElementById('dropoff'),
-                payment: document.getElementById('payment') // 新增
+                payment: document.getElementById('payment')
             }
         };
+
+        // 快速填寫地點
+        window.setLoc = function(type, value) {
+            const input = document.getElementById(type);
+            input.value = value;
+            // 視覺回饋：閃爍一下背景
+            input.classList.add('bg-gray-100');
+            setTimeout(() => input.classList.remove('bg-gray-100'), 200);
+        }
 
         // 載入 SDK
         function loadSDK(callback) {
@@ -160,46 +195,98 @@
             });
         };
 
-        // 送出表單
-        async function submitBooking() {
+        // 輔助函式：日期格式化 (移除年份，轉為 月/日 (週X))
+        function formatDateFriendly(dateStr) {
+            const d = new Date(dateStr);
+            const month = (d.getMonth() + 1).toString().padStart(2, '0');
+            const day = d.getDate().toString().padStart(2, '0');
+            const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+            const week = weekDays[d.getDay()];
+            return `${month}/${day} (週${week})`;
+        }
+
+        // 二次確認 + 送出
+        async function confirmAndSubmit() {
             const form = document.getElementById('booking-form');
             if (!form.checkValidity()) {
                 form.reportValidity();
                 return;
             }
 
-            dom.btn.disabled = true;
-            dom.btn.innerHTML = `<div class="loader mr-3"></div> 資料傳送中...`;
-            dom.btn.classList.remove('from-green-500', 'to-emerald-600');
-            dom.btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+            // 格式化日期
+            const friendlyDate = formatDateFriendly(dom.inputs.date.value);
 
             const data = {
                 pickup: dom.inputs.pickup.value,
                 dropoff: dom.inputs.dropoff.value,
                 date: dom.inputs.date.value,
+                friendlyDate: friendlyDate, // 用於顯示
                 time: dom.inputs.time.value,
                 name: dom.inputs.name.value,
                 phone: dom.inputs.phone.value,
-                payment: dom.inputs.payment.value // 讀取付款方式
+                payment: dom.inputs.payment.value
             };
 
-            // 組合訊息內容
-            const msgText = `🚕 新增叫車\n----------------\n👤 乘客：${data.name}\n📞 電話：${data.phone}\n📅 時間：${data.date} ${data.time}\n💰 付款：${data.payment}\n🟢 上車：${data.pickup}\n🔴 下車：${data.dropoff}`;
+            // ★★★ 二次確認視窗 ★★★
+            const result = await Swal.fire({
+                title: '請確認預約資料',
+                html: `
+                    <div class="text-left bg-gray-50 p-4 rounded-lg text-sm space-y-2">
+                        <p><span class="font-bold text-gray-500">📅 時間：</span>${data.friendlyDate} ${data.time}</p>
+                        <p><span class="font-bold text-green-600">🟢 上車：</span>${data.pickup}</p>
+                        <p><span class="font-bold text-red-600">🔴 下車：</span>${data.dropoff}</p>
+                        <p><span class="font-bold text-yellow-600">💰 付款：</span>${data.payment}</p>
+                        <p><span class="font-bold text-gray-500">📞 電話：</span>${data.phone}</p>
+                    </div>
+                `,
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: '✅ 確認預約', // 改為 "確認預約"
+                cancelButtonText: '❌ 修改',
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#d1d5db',
+                reverseButtons: true
+            });
+
+            if (!result.isConfirmed) return;
+
+            // 開始送出
+            executeSubmission(data);
+        }
+
+        async function executeSubmission(data) {
+            dom.btn.disabled = true;
+            dom.btn.innerHTML = `<div class="loader mr-3"></div> 資料傳送中...`;
+            dom.btn.classList.remove('from-green-500', 'to-emerald-600');
+            dom.btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+            // 移除分隔線，精簡文案
+            const msgText = `🗓️ 預約叫車確認單\n👤 乘客：${data.name}\n📞 電話：${data.phone}\n📅 時間：${data.friendlyDate} ${data.time}\n💰 付款：${data.payment}\n🟢 上車：${data.pickup}\n🔴 下車：${data.dropoff}`;
 
             try {
-                // 1. 嘗試用 LIFF 發送訊息
                 if (liff.isInClient()) {
                     await liff.sendMessages([{ type: 'text', text: msgText }]);
                 }
 
-                // 2. (可選) 呼叫 GAS API 寫入資料庫
-                // await fetch('GAS_API_URL', { method: 'POST', body: JSON.stringify(data) });
+                // 產生 Google Calendar Link
+                // 格式：https://calendar.google.com/calendar/render?action=TEMPLATE&text={標題}&dates={開始時間}/{結束時間}&details={詳情}&location={地點}
+                const startDateTime = new Date(`${data.date}T${data.time}`).toISOString().replace(/-|:|\.\d\d\d/g, "");
+                // 預設行程 1 小時
+                const endDateTime = new Date(new Date(`${data.date}T${data.time}`).getTime() + 3600000).toISOString().replace(/-|:|\.\d\d\d/g, "");
+                const calTitle = encodeURIComponent(`🚕 計程車預約 (${data.pickup} -> ${data.dropoff})`);
+                const calDetails = encodeURIComponent(`司機電話：(請待確認)\n付款方式：${data.payment}`);
+                const calLocation = encodeURIComponent(data.pickup);
+                const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${calTitle}&dates=${startDateTime}/${endDateTime}&details=${calDetails}&location=${calLocation}`;
 
-                // 成功提示
                 Swal.fire({
                     icon: 'success',
                     title: '預約成功！',
-                    text: '司機將盡快與您聯繫',
+                    html: `
+                        <p class="mb-4 text-gray-600">司機將盡快與您聯繫</p>
+                        <a href="${googleCalUrl}" target="_blank" class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 transition-colors">
+                            📅 加入行事曆
+                        </a>
+                    `,
                     confirmButtonText: '關閉視窗',
                     confirmButtonColor: '#10b981'
                 }).then(() => {
@@ -207,7 +294,6 @@
                 });
 
             } catch (err) {
-                // 錯誤處理 (如果不在 LINE 內開啟，sendMessages 會失敗，這邊做個 Fallback)
                 console.error(err);
                 if (!liff.isInClient()) {
                      alert("請在 LINE App 內開啟此頁面以傳送訊息。\n\n" + msgText);
