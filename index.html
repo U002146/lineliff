@@ -72,7 +72,8 @@
                             <input type="text" id="date-display" readonly class="w-full p-4 bg-white border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold text-gray-700">
                             
                             <!-- ★★★ 邏輯層：真正的日期選單，透明覆蓋在上面 ★★★ -->
-                            <input type="date" id="date" required onchange="syncDateDisplay()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer top-8 z-10">
+                            <!-- 修改：onchange 改為呼叫 handleDateChange -->
+                            <input type="date" id="date" required onchange="handleDateChange()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer top-8 z-10">
                         </div>
                         <div>
                             <label class="block font-bold text-gray-700 mb-2 text-lg">🕒 時間</label>
@@ -161,7 +162,6 @@
         const PRESET_LOCATIONS = [
             { name: '常用地址 A', icon: '⭐', value: 'FAV_ADDR_A' },
             { name: '常用地址 B', icon: '⭐', value: 'FAV_ADDR_B' },
-            // { name: '手動輸入', icon: '✏️', value: 'MANUAL_INPUT' }, // ★ 已移除，因為直接打字即可
             { name: '花蓮前站', icon: '🚉' },
             { name: '花蓮後站', icon: '🚉' },
             { name: '吉安車站', icon: '🚉' },
@@ -182,13 +182,19 @@
 
         let currentTargetInputId = '';
 
-        // ★★★ 日期顯示同步 (核心邏輯) ★★★
+        // ★★★ 新增：專門處理使用者手動變更日期的事件 ★★★
+        function handleDateChange() {
+            syncDateDisplay();   // 更新畫面文字
+            checkTimeValidity(); // 檢查時間合法性
+        }
+
+        // ★★★ 日期顯示同步 (只負責畫面，不負責檢查邏輯，避免無窮迴圈) ★★★
         function syncDateDisplay() {
             const val = dom.inputs.date.value;
             if (val) {
                 const parts = val.split('-');
                 dom.inputs.dateDisplay.value = `${parts[1]}/${parts[2]}`;
-                checkTimeValidity(); 
+                // 注意：這裡移除了 checkTimeValidity() 的呼叫，這是修復當機的關鍵！
             }
         }
 
@@ -217,7 +223,10 @@
                 const month = String(validTime.getMonth() + 1).padStart(2, '0');
                 const day = String(validTime.getDate()).padStart(2, '0');
                 dom.inputs.date.value = `${year}-${month}-${day}`;
+                
+                // 修正後更新畫面，因為 syncDateDisplay 已經不會再回call checkTimeValidity，所以很安全
                 syncDateDisplay();
+                
                 dom.inputs.time.value = validTime.toTimeString().substring(0,5);
             }
         }
@@ -289,8 +298,6 @@
                 }
                 return;
             }
-
-            // ★ 手動輸入的判斷邏輯也一併移除，因為選單裡已經沒有這個選項了
 
             // 2. 一般地點
             Swal.close();
