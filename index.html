@@ -285,11 +285,13 @@
             });
         };
 
-        // 輔助函式：日期格式化 (只保留 月/日，移除星期以防換行，純字串處理避免時區錯誤)
+        // 輔助函式：日期格式化 (只保留 月/日，直接對字串切分，完全避開 UTC 時區問題)
         function formatDateFriendly(dateStr) {
             if (!dateStr) return "";
+            // dateStr 格式為 "2026-01-18"
             const parts = dateStr.split('-');
             if (parts.length === 3) {
+                // parts[1] 是月份，parts[2] 是日期
                 return `${parts[1]}/${parts[2]}`;
             }
             return dateStr;
@@ -326,6 +328,7 @@
                 return;
             }
 
+            // 使用純字串處理的格式化函式
             const friendlyDate = formatDateFriendly(dom.inputs.date.value);
 
             const data = {
