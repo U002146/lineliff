@@ -157,10 +157,11 @@
             }
         };
 
+        // ★★★ 雙記憶卡槽結構 (A/B) - 移除手動輸入 ★★★
         const PRESET_LOCATIONS = [
-            // ★ 修改：改為「常用地址」，Value 改為 FAV_ADDR
-            { name: '常用地址 (自動記憶)', icon: '⭐', value: 'FAV_ADDR' },
-            { name: '手動輸入', icon: '✏️', value: 'MANUAL_INPUT' }, 
+            { name: '常用地址 A', icon: '⭐', value: 'FAV_ADDR_A' },
+            { name: '常用地址 B', icon: '⭐', value: 'FAV_ADDR_B' },
+            // { name: '手動輸入', icon: '✏️', value: 'MANUAL_INPUT' }, // ★ 已移除，因為直接打字即可
             { name: '花蓮前站', icon: '🚉' },
             { name: '花蓮後站', icon: '🚉' },
             { name: '吉安車站', icon: '🚉' },
@@ -229,8 +230,7 @@
                 let bgClass = 'bg-gray-50 hover:bg-blue-50';
                 
                 // 針對不同按鈕給予不同顏色提示
-                if(val === 'FAV_ADDR') bgClass = 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200'; // 常用地址改為黃色系
-                if(val === 'MANUAL_INPUT') bgClass = 'bg-blue-50 hover:bg-blue-100 border-blue-200';
+                if(val === 'FAV_ADDR_A' || val === 'FAV_ADDR_B') bgClass = 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200'; // 常用地址 A/B
 
                 buttonsHtml += `
                     <button onclick="selectLocation('${val}')" 
@@ -251,18 +251,22 @@
             });
         }
 
-        // ★★★ 核心邏輯優化：常用地址與手動輸入 ★★★
+        // ★★★ 核心邏輯優化：雙常用地址 (A/B) ★★★
         window.selectLocation = function(value) {
             const input = document.getElementById(currentTargetInputId);
             
-            // 1. 常用地址 (升級版)
-            if (value === 'FAV_ADDR') {
-                const savedAddr = localStorage.getItem('taxi_fav_addr'); // Key 變更為 taxi_fav_addr
+            // 1. 常用地址 A 或 B
+            if (value === 'FAV_ADDR_A' || value === 'FAV_ADDR_B') {
+                // 根據選的是 A 還是 B，決定儲存的 Key 和顯示名稱
+                const storageKey = value === 'FAV_ADDR_A' ? 'taxi_fav_addr_a' : 'taxi_fav_addr_b';
+                const labelName = value === 'FAV_ADDR_A' ? '常用地址 A' : '常用地址 B';
+
+                const savedAddr = localStorage.getItem(storageKey);
                 
                 if (savedAddr) {
                     // 如果已經有地址，詢問確認或修改
                     Swal.fire({
-                        title: '📍 這是您的常用地址嗎？',
+                        title: `📍 這是您的${labelName}嗎？`,
                         text: savedAddr,
                         icon: 'question',
                         showDenyButton: true,
@@ -276,49 +280,28 @@
                             input.value = savedAddr;
                             flashInput(input);
                         } else if (result.isDenied) {
-                            promptSetFavAddress(input); // 進入修改流程
+                            promptSetFavAddress(input, storageKey, labelName); // 進入修改流程
                         }
                     });
                 } else {
                     // 第一次設定
-                    promptSetFavAddress(input);
+                    promptSetFavAddress(input, storageKey, labelName);
                 }
                 return;
             }
 
-            // 2. 手動輸入 (修復當機)
-            if (value === 'MANUAL_INPUT') {
-                Swal.close(); 
-                
-                setTimeout(() => {
-                    input.value = '';
-                    input.focus();
-                    
-                    const Toast = Swal.mixin({
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 2000,
-                        timerProgressBar: true
-                    });
-                    Toast.fire({
-                        icon: 'info',
-                        title: '請輸入地址 ✏️'
-                    });
-                }, 300);
-                return;
-            }
+            // ★ 手動輸入的判斷邏輯也一併移除，因為選單裡已經沒有這個選項了
 
-            // 3. 一般地點
+            // 2. 一般地點
             Swal.close();
             input.value = value;
             flashInput(input);
         };
 
-        // 獨立出「設定常用地址」的功能函式
-        function promptSetFavAddress(input) {
+        // 獨立出「設定常用地址」的功能函式，現在支援 A/B 兩組
+        function promptSetFavAddress(input, storageKey, labelName) {
             Swal.fire({
-                title: '⭐ 設定常用地址',
+                title: `⭐ 設定${labelName}`,
                 input: 'text',
                 inputLabel: '輸入一次，以後自動帶入',
                 inputPlaceholder: '例如：花蓮市中正路100號',
@@ -328,14 +311,14 @@
                 confirmButtonColor: '#fbbf24' // 使用黃色系按鈕
             }).then((result) => {
                 if (result.isConfirmed && result.value) {
-                    localStorage.setItem('taxi_fav_addr', result.value);
+                    localStorage.setItem(storageKey, result.value);
                     input.value = result.value;
                     flashInput(input);
                     
                     Swal.fire({
                         icon: 'success',
                         title: '已記憶！',
-                        text: '下次點「常用地址」就會自動帶入囉',
+                        text: `下次點「${labelName}」就會自動帶入囉`,
                         timer: 1500,
                         showConfirmButton: false
                     });
