@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>預約叫車服務</title>
+    <title>預約服務</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 強制防止 iOS 縮放，並設定基礎字體大小 */
@@ -46,7 +46,7 @@
             <!-- Header -->
             <header class="bg-blue-600 text-white p-6 pb-8 rounded-b-[2.5rem] shadow-lg z-10 relative">
                 <div class="text-center">
-                    <h1 class="text-3xl font-extrabold tracking-wide">🚕 預約叫車</h1>
+                    <h1 class="text-3xl font-extrabold tracking-wide">🚕 預約服務</h1>
                     <p id="user-display" class="text-blue-100 text-base mt-2 font-medium">載入使用者...</p>
                 </div>
                 <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-10 rounded-full"></div>
@@ -421,7 +421,7 @@
             dom.btn.classList.remove('from-green-500', 'to-emerald-600');
             dom.btn.classList.add('bg-gray-400', 'cursor-not-allowed');
 
-            const msgText = `🗓️ 預約叫車確認單\n👤 乘客：${data.name}\n📞 電話：${data.phone}\n📅 時間：${data.friendlyDate} ${data.time}\n💰 付款：${data.payment}\n🟢 上車：${data.pickup}\n🔴 下車：${data.dropoff}`;
+            const msgText = `🗓️ 預約服務\n👤 乘客：${data.name}\n📞 電話：${data.phone}\n📅 時間：${data.friendlyDate} ${data.time}\n💰 付款：${data.payment}\n🟢 上車：${data.pickup}\n🔴 下車：${data.dropoff}`;
 
             try {
                 if (liff.isInClient()) {
@@ -468,3 +468,4 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>
+
